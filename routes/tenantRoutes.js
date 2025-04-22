@@ -11,6 +11,7 @@ const getTenantDb = async (tenantId) => {
 };
 
 router.get('/products', async (req, res) => {
+  
   const tenantId = req.headers['x-tenant-id'];
   try {
     const conn = await getTenantDb(tenantId);
