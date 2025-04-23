@@ -1,41 +1,53 @@
 const { MongoClient } = require('mongodb');
-const Tenant = require('../models/Tenant');
-require('dotenv').config();
-const { exec } = require('child_process');
+const mongoose = require('mongoose')
 
-const createTenantDB = async (email, tenantDb) => {
-  const client = new MongoClient(process.env.MONGO_URI);
+
+const dumpAndRestoreUserData = async (userId, username) => {
+  // Cleanup old dump dir if exists
+  const uri = 'mongodb://localhost:27017';
+  console.log(userId, "------userId")
+
+  const targetDb = `${username}_${userId}`;
+
+  const client = new MongoClient(uri);
   await client.connect();
 
- 
-  const baseDb = client.db(process.env.BASE_TEMPLATE_DB);
-  const newDb = client.db(tenantDb);
+  const sourceDb = client.db('mainDB');
+  const collections = await sourceDb.listCollections().toArray();
 
-  const collections = await baseDb.listCollections().toArray();
-  for (const coll of collections) {
-    const docs = await baseDb.collection(coll.name).find().toArray();
-    if (docs.length > 0) {
-      await newDb.collection(coll.name).insertMany(docs);
+  for (const { name: collectionName } of collections) {
+    if (collectionName === 'tenants') {
+      console.log(`Skipping collection: ${collectionName}`);
+      continue;
+    }
+    const matchQuery = collectionName === 'users'
+      ? { _id: new mongoose.Types.ObjectId(userId) }
+      : { userId: new mongoose.Types.ObjectId(userId) };
+    try {
+      await sourceDb.collection(collectionName).aggregate([
+        { $match: matchQuery },
+        { $out: { db: targetDb, coll: collectionName } }
+      ]).toArray();
+      console.log(`Migrated collection: ${collectionName}`);
+    } catch (err) {
+      console.warn(`Skipped ${collectionName}:`, err.message);
     }
   }
-  const todb = process.env.MONGO_URI.replace('mainDB', tenantDb);
-  console.log("todb--------",todb)
-  await cloneDB(process.env.MONGO_URI,todb)
+
+  try {
+    const tenantInfo = {
+      userId: userId,
+      dbName: targetDb,
+    };
+
+    await sourceDb.collection('tenants').insertOne(tenantInfo);
+    console.log(`Tenant info saved to mainDB.tenants:`, tenantInfo);
+  } catch (err) {
+    console.error('Failed to store tenant info:', err.message);
+  }
+
   await client.close();
-  return tenantDb;
-};
+  console.log(`Migration to ${targetDb} completed.`);
+}
 
-const cloneDB = async(fromDb, toDb) => {
-  const dumpCmd = `mongodump --uri="${process.env.MONGO_URI}" --db=${fromDb} --out=./dump`;
-  const restoreCmd = `mongorestore --uri="${process.env.MONGO_URI}" --nsFrom="${fromDb}.*" --nsTo="${toDb}.*" ./dump/${fromDb}`;
-
-  exec(`${dumpCmd} && ${restoreCmd}`, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error cloning DB: ${err.message}`);
-    } else {
-      console.log('Database cloned successfully.');
-    }
-  });
-};
-
-module.exports = { createTenantDB };
+module.exports = dumpAndRestoreUserData;

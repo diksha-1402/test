@@ -4,7 +4,7 @@ const Tenant = require('./Tenant');
 const productSchema = new mongoose.Schema({
   name: String,
   price: Number,
-  TenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 });
 
 module.exports = mongoose.model('Product', productSchema);

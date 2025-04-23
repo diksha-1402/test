@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
 const tenantSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  tenantName: { type: String, required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   dbName: { type: String, required: true },
 });
 
