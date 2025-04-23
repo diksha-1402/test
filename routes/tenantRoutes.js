@@ -4,14 +4,15 @@ const Tenant = require('../models/Tenant');
 const router = express.Router();
 
 const getTenantDb = async (tenantId) => {
-  const tenant = await Tenant.findById(tenantId);
+  const tenant = await Tenant.findById({_id:new mongoose.Types.ObjectId(tenantId)});
   if (!tenant) throw new Error('Tenant not found');
   const uri = process.env.MONGO_URI.replace('mainDB', tenant.dbName);
+  console.log(uri,"@=======uri")
   return mongoose.createConnection(uri);
 };
 
 router.get('/products', async (req, res) => {
-  
+
   const tenantId = req.headers['x-tenant-id'];
   try {
     const conn = await getTenantDb(tenantId);

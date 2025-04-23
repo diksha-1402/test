@@ -10,16 +10,16 @@ router.get('/products', async (req, res) => {
 });
 
 
-router.get('/create-tenant', async (req, res) => {
+router.post('/create-tenant', async (req, res) => {
     const users = await Tenant.findOne({email:req.body.email});
     if(users){
         return res.json({message: 'Email already exists'});
     }
+    let tenantName=req.body.name;
     const dbName = `tenant_${tenantName.toLowerCase().replace(/\s+/g, '_')}`;
     const tenant = new Tenant({
-        name: req.body.name,
+        tenantName: req.body.name,
         email: req.body.email,
-        name: req.body.name,
         dbName:dbName
     });
 
@@ -32,7 +32,7 @@ router.get('/create-tenant', async (req, res) => {
     if(!users){
         return res.json({message: 'Email already exists'});
     }
-   return res.json({message: 'tenant logged in successfully'});
+   return res.json({message: 'tenant logged in successfully',data:users});
   });
 
 module.exports = router;
