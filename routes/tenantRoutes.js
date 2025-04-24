@@ -2,13 +2,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Tenant = require('../models/Tenant');
 const router = express.Router();
-
+const ProductSchema=require('../models/Product')
+const connections = {}; // Cache for tenant DB connections
 const getTenantDb = async (tenantId) => {
+  if (connections[tenantId]) return connections[tenantId]; // Reuse existing connection
   const tenant = await Tenant.findById({ _id: new mongoose.Types.ObjectId(tenantId) });
   if (!tenant) throw new Error('Tenant not found');
   const uri = process.env.MONGO_URI.replace('mainDB', tenant.dbName);
   console.log(uri, "@=======uri")
-  return mongoose.createConnection(uri);
+  let conn=await mongoose.createConnection(uri);
+  connections[tenantId] = conn;
+  return conn;
 };
 
 router.get('/products/:userId', async (req, res) => {
@@ -30,7 +34,7 @@ router.post('/products', async (req, res) => {
   console.log(req.body)
   try {
     const conn = await getTenantDb(tenantId);
-     const Product = conn.model('Product', new mongoose.Schema({ name: String, price: Number ,userId: mongoose.Schema.Types.ObjectId,}), 'products');
+     const Product = conn.model('Product', new mongoose.Schema({ name: String, price: Number,userId: mongoose.Schema.Types.ObjectId, }), 'products');
     const newProduct = await Product.create({ name, price, userId});
     return res.json(newProduct);
   } catch (err) {

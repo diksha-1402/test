@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const Tenant = require('./Tenant');
 
 const productSchema = new mongoose.Schema({
   name: String,
